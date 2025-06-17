@@ -91,10 +91,13 @@ Options:
           Permission mode for the file, in octal form
 
       --user <USER>
-          User which will become the new owner of the file
+          User which will become the new owner of the file (and for the paths with --makedirs)
 
       --group <GROUP>
-          Group which will become the new owner of the file
+          Group which will become the new owner of the file (and for the paths with --makedirs)
+
+      --makedirs
+          Use to create intermediate paths when needed. Created paths will have the permission 0755 and owner as specified by --user and --group
 
       --config-dir <CONFIG_DIR>
           [env: TEDGE_CONFIG_DIR, default: /etc/tedge]

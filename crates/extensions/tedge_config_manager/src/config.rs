@@ -108,6 +108,7 @@ struct RawPluginConfig {
 #[serde(deny_unknown_fields)]
 pub struct RawFileEntry {
     pub path: String,
+    makedirs: Option<bool>,
     #[serde(rename = "type")]
     config_type: Option<String>,
     user: Option<String>,
@@ -123,6 +124,7 @@ pub struct PluginConfig {
 #[derive(Debug, Eq, Default, Clone)]
 pub struct FileEntry {
     pub path: String,
+    pub makedirs: bool,
     pub config_type: String,
     pub file_permissions: PermissionEntry,
 }
@@ -148,6 +150,7 @@ impl Borrow<str> for FileEntry {
 impl FileEntry {
     pub fn new(
         path: String,
+        makedirs: Option<bool>,
         config_type: String,
         user: Option<String>,
         group: Option<String>,
@@ -155,6 +158,7 @@ impl FileEntry {
     ) -> Self {
         Self {
             path,
+            makedirs: makedirs.unwrap_or(false),
             config_type,
             file_permissions: PermissionEntry { user, group, mode },
         }
@@ -198,6 +202,7 @@ impl PluginConfig {
     fn new_with_config_file_entry(config_file_path: &Path) -> Self {
         let file_entry = FileEntry::new(
             config_file_path.display().to_string(),
+            None,
             DEFAULT_PLUGIN_CONFIG_TYPE.into(),
             None,
             None,
@@ -225,6 +230,7 @@ impl PluginConfig {
 
             let entry = FileEntry::new(
                 raw_entry.path,
+                raw_entry.makedirs,
                 config_type.clone(),
                 raw_entry.user,
                 raw_entry.group,

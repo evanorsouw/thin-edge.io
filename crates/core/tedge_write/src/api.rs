@@ -28,6 +28,9 @@ pub struct CopyOptions<'a> {
 
     /// Group which will become the new owner of the file.
     pub group: Option<&'a str>,
+
+    /// When true, missing intermediate directories are created as needed.
+    pub makedirs: Option<bool>,
 }
 
 impl CopyOptions<'_> {
@@ -40,6 +43,7 @@ impl CopyOptions<'_> {
         let output = command.output();
 
         let program = command.get_program().to_string_lossy();
+        println!("running command: {program:?}");
         let output = output.with_context(|| format!("failed to start process '{program}'"))?;
 
         if !output.status.success() {
@@ -78,6 +82,9 @@ impl CopyOptions<'_> {
         if let Some(group) = self.group {
             command.arg("--group").arg(group);
         }
+        if self.makedirs == Some(true) {
+            command.arg("--makedirs");
+        }
 
         Ok(command)
     }
@@ -107,6 +114,7 @@ mod tests {
             mode: None,
             user: None,
             group: None,
+            makedirs: None
         };
 
         // when sudo not in path, start tedge-write without sudo

@@ -7,6 +7,7 @@ use clap::Parser;
 use tedge_config::cli::CommonArgs;
 use tedge_config::log_init;
 use tedge_utils::atomic::MaybePermissions;
+use std::os::unix::fs::PermissionsExt;
 
 /// tee-like helper for writing to files which `tedge` user does not have write permissions to.
 ///
@@ -25,13 +26,18 @@ pub struct Args {
     #[arg(long)]
     mode: Option<Box<str>>,
 
-    /// User which will become the new owner of the file.
+    /// User which will become the new owner of the file (and for the paths with --makedirs).
     #[arg(long)]
     user: Option<Box<str>>,
 
-    /// Group which will become the new owner of the file.
+    /// Group which will become the new owner of the file (and for the paths with --makedirs).
     #[arg(long)]
     group: Option<Box<str>>,
+
+    /// Use to create intermediate paths when needed. 
+    /// Created paths will have the permission 0755 and owner as specified by --user and --group.
+    #[arg(long, default_value_t = false)]
+    makedirs: bool,
 
     #[command(flatten)]
     common: CommonArgs,
@@ -88,6 +94,34 @@ pub fn run(args: Args) -> anyhow::Result<()> {
         .transpose()?
         .map(|g| g.gid());
 
+    if args.makedirs {
+        let dir = target_filepath.parent().unwrap();       
+        if !dir.exists() {
+
+            let mut current = Utf8PathBuf::new();
+            for comp in dir.components() {
+                current.push(comp);
+
+                if current.exists() {
+                    continue;
+                }
+
+                std::fs::create_dir(&current)
+                    .context(format!("failed to create directory '{current:?}'"))?;
+
+                let mode = 0o755;    // owner can do all, group, others can enter/read
+                let perm = std::fs::Permissions::from_mode(mode);
+                std::fs::set_permissions(&current, perm)
+                    .context(format!("failed to set permissions {mode:o} on directory '{current:?}'"))?;
+
+                if uid.is_some() || gid.is_some() {
+                    std::os::unix::fs::chown(&current, uid, gid)
+                        .context(format!("failed to change ownership {:?}:{:?} on directory '{current:?}'", uid, gid))?;
+                }
+            }
+        }
+    }    
+
     // what permissions we want to set if the file doesn't exist
     let permissions = MaybePermissions { uid, gid, mode };
 
@@ -102,3 +136,4 @@ pub fn run(args: Args) -> anyhow::Result<()> {
 
     Ok(())
 }
+

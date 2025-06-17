@@ -420,7 +420,10 @@ impl ConfigManagerWorker {
         };
 
         if let Some(io_error) = err.downcast_ref::<std::io::Error>() {
-            if io_error.kind() != ErrorKind::PermissionDenied {
+            let recoverable = 
+                io_error.kind() == ErrorKind::NotFound && file_entry.makedirs ||
+                io_error.kind() == ErrorKind::PermissionDenied;
+            if !recoverable {
                 return Err(err);
             }
         }
@@ -434,6 +437,7 @@ impl ConfigManagerWorker {
                 let mode = file_entry.file_permissions.mode;
                 let user = file_entry.file_permissions.user.as_deref();
                 let group = file_entry.file_permissions.group.as_deref();
+                let makedirs = Option::Some(file_entry.makedirs);
 
                 let options = CopyOptions {
                     from,
@@ -442,6 +446,7 @@ impl ConfigManagerWorker {
                     mode,
                     user,
                     group,
+                    makedirs,
                 };
 
                 options.copy()?;
